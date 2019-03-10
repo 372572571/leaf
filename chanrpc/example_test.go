@@ -7,7 +7,7 @@ import (
 )
 
 func Example() {
-	s := chanrpc.NewServer(10)
+	s := chanrpc.NewServer(10)	// 创建能够接受10个管道数据的服务
 
 	var wg sync.WaitGroup
 	wg.Add(1)
@@ -33,7 +33,7 @@ func Example() {
 		})
 
 		wg.Done()
-
+		// 开始处理
 		for {
 			s.Exec(<-s.ChanCall)
 		}
@@ -104,7 +104,7 @@ func Example() {
 			}
 		})
 
-		c.Cb(<-c.ChanAsynRet)
+		c.Cb(<-c.ChanAsynRet) // 等待一个异步管道
 		c.Cb(<-c.ChanAsynRet)
 		c.Cb(<-c.ChanAsynRet)
 		c.Cb(<-c.ChanAsynRet)

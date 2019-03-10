@@ -80,7 +80,7 @@ func (s *Server) Register(id interface{}, f interface{}) {
 	s.functions[id] = f
 }
 
-func (s *Server) ret(ci *CallInfo, ri *RetInfo) (err error) {
+func (s *Server) ret(ci *CallInfo, ri *RetInfo) (err error) {	// 返回结果
 	if ci.chanRet == nil {
 		return
 	}
@@ -92,11 +92,11 @@ func (s *Server) ret(ci *CallInfo, ri *RetInfo) (err error) {
 	}()
 
 	ri.cb = ci.cb
-	ci.chanRet <- ri
+	ci.chanRet <- ri	// 返回的数据丢入返回管道
 	return
 }
 
-func (s *Server) exec(ci *CallInfo) (err error) {
+func (s *Server) exec(ci *CallInfo) (err error) {	// 此时的 ci 是已经从服务管道中取出的数据
 	defer func() {
 		if r := recover(); r != nil {
 			if conf.LenStackBuf > 0 {
@@ -112,10 +112,10 @@ func (s *Server) exec(ci *CallInfo) (err error) {
 	}()
 
 	// execute
-	switch ci.f.(type) {
+	switch ci.f.(type) {	// 类型推断 处理后调用函数返回结果
 	case func([]interface{}):
 		ci.f.(func([]interface{}))(ci.args)
-		return s.ret(ci, &RetInfo{})
+		return s.ret(ci, &RetInfo{})	// 返回结果
 	case func([]interface{}) interface{}:
 		ret := ci.f.(func([]interface{}) interface{})(ci.args)
 		return s.ret(ci, &RetInfo{ret: ret})
@@ -195,14 +195,15 @@ func (c *Client) Attach(s *Server) {
 }
 
 func (c *Client) call(ci *CallInfo, block bool) (err error) {
+	// 如果发生意外
 	defer func() {
 		if r := recover(); r != nil {
 			err = r.(error)
 		}
 	}()
-
+	// true 同步调用
 	if block {
-		c.s.ChanCall <- ci
+		c.s.ChanCall <- ci		// 包装后的调用数据 传入服务回调管道
 	} else {
 		select {
 		case c.s.ChanCall <- ci:
@@ -226,7 +227,7 @@ func (c *Client) f(id interface{}, n int) (f interface{}, err error) {
 	}
 
 	var ok bool
-	switch n {
+	switch n {	// 类型推断
 	case 0:
 		_, ok = f.(func([]interface{}))
 	case 1:
@@ -244,22 +245,22 @@ func (c *Client) f(id interface{}, n int) (f interface{}, err error) {
 }
 
 func (c *Client) Call0(id interface{}, args ...interface{}) error {
-	f, err := c.f(id, 0)
+	f, err := c.f(id, 0)	// 根据id 返回服务上的方法
 	if err != nil {
 		return err
 	}
 
-	err = c.call(&CallInfo{
-		f:       f,
-		args:    args,
-		chanRet: c.chanSyncRet,
+	err = c.call(&CallInfo{	// 包装信息
+		f:       f,			// 要调用的方法
+		args:    args,		// 附带的参数
+		chanRet: c.chanSyncRet,	// 客服的同步返回管道（此时是空的等待服务把这条管道塞入数据）
 	}, true)
 	if err != nil {
 		return err
 	}
 
-	ri := <-c.chanSyncRet
-	return ri.err
+	ri := <-c.chanSyncRet	// 同步返回值(服务把数据丢到这个管道内，那么开始返回)
+	return ri.err			// 如果没有错误返回一个nil
 }
 
 func (c *Client) Call1(id interface{}, args ...interface{}) (interface{}, error) {
@@ -271,14 +272,14 @@ func (c *Client) Call1(id interface{}, args ...interface{}) (interface{}, error)
 	err = c.call(&CallInfo{
 		f:       f,
 		args:    args,
-		chanRet: c.chanSyncRet,
+		chanRet: c.chanSyncRet,	 // 疑问把自己管道内的一些参数丢出去后，什么管道的那边调用
 	}, true)
 	if err != nil {
 		return nil, err
 	}
 
 	ri := <-c.chanSyncRet
-	return ri.ret, ri.err
+	return ri.ret, ri.err	// ri.ret 返回值
 }
 
 func (c *Client) CallN(id interface{}, args ...interface{}) ([]interface{}, error) {
@@ -297,9 +298,10 @@ func (c *Client) CallN(id interface{}, args ...interface{}) ([]interface{}, erro
 	}
 
 	ri := <-c.chanSyncRet
-	return assert(ri.ret), ri.err
+	return assert(ri.ret), ri.err  // assert 断言
 }
 
+// 异步回调
 func (c *Client) asynCall(id interface{}, args []interface{}, cb interface{}, n int) {
 	f, err := c.f(id, n)
 	if err != nil {
@@ -324,11 +326,11 @@ func (c *Client) AsynCall(id interface{}, _args ...interface{}) {
 		panic("callback function not found")
 	}
 
-	args := _args[:len(_args)-1]
-	cb := _args[len(_args)-1]
+	args := _args[:len(_args)-1]	// 深拷贝
+	cb := _args[len(_args)-1]		// 深拷贝
 
 	var n int
-	switch cb.(type) {
+	switch cb.(type) {	// 推断回调类型
 	case func(error):
 		n = 0
 	case func(interface{}, error):
@@ -348,7 +350,7 @@ func (c *Client) AsynCall(id interface{}, _args ...interface{}) {
 	c.asynCall(id, args, cb, n)
 	c.pendingAsynCall++
 }
-
+// ri 返回结果
 func execCb(ri *RetInfo) {
 	defer func() {
 		if r := recover(); r != nil {
@@ -363,7 +365,7 @@ func execCb(ri *RetInfo) {
 	}()
 
 	// execute
-	switch ri.cb.(type) {
+	switch ri.cb.(type) {	// 类型推断 并调用
 	case func(error):
 		ri.cb.(func(error))(ri.err)
 	case func(interface{}, error):
@@ -376,6 +378,7 @@ func execCb(ri *RetInfo) {
 	return
 }
 
+// 抛出一个异步管道
 func (c *Client) Cb(ri *RetInfo) {
 	c.pendingAsynCall--
 	execCb(ri)
