@@ -21,25 +21,26 @@ type WSConn struct {
 func newWSConn(conn *websocket.Conn, pendingWriteNum int, maxMsgLen uint32) *WSConn {
 	wsConn := new(WSConn)
 	wsConn.conn = conn
-	wsConn.writeChan = make(chan []byte, pendingWriteNum)
-	wsConn.maxMsgLen = maxMsgLen
+	wsConn.writeChan = make(chan []byte, pendingWriteNum)	// 写入管道创建 pendingWriteNum等待写入的数据有几条
+	wsConn.maxMsgLen = maxMsgLen							// 写入信息最大长度
 
-	go func() {
-		for b := range wsConn.writeChan {
+	go func() {	// 如果wsConn.writeChan中没有数据打断循环 继续监听
+		for b := range wsConn.writeChan {	// 循环管道内容
 			if b == nil {
-				break
+				break // (等待写入状态)
 			}
 
+			// websocket.BinaryMessage 二进制写入 (链接内容写入) b byte 数据	
 			err := conn.WriteMessage(websocket.BinaryMessage, b)
 			if err != nil {
 				break
 			}
 		}
-
-		conn.Close()
-		wsConn.Lock()
-		wsConn.closeFlag = true
-		wsConn.Unlock()
+		// 写入完成后关闭
+		conn.Close()	//	关闭链接
+		wsConn.Lock()	// 	同步锁
+		wsConn.closeFlag = true	// 特定标识符
+		wsConn.Unlock()	// 同步锁解除
 	}()
 
 	return wsConn

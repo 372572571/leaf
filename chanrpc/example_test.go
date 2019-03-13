@@ -14,6 +14,7 @@ func Example() {
 
 	// goroutine 1
 	go func() {
+		// 注册
 		s.Register("f0", func(args []interface{}) {
 
 		})
@@ -45,7 +46,7 @@ func Example() {
 	// goroutine 2
 	go func() {
 		c := s.Open(10)
-
+		// 异步
 		// sync
 		err := c.Call0("f0")
 		if err != nil {

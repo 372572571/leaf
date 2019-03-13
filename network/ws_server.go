@@ -10,17 +10,18 @@ import (
 	"time"
 )
 
+// web socket 服务结构
 type WSServer struct {
-	Addr            string
-	MaxConnNum      int
-	PendingWriteNum int
-	MaxMsgLen       uint32
-	HTTPTimeout     time.Duration
-	CertFile        string
-	KeyFile         string
-	NewAgent        func(*WSConn) Agent
-	ln              net.Listener
-	handler         *WSHandler
+	Addr            string			// 地址
+	MaxConnNum      int				// 最大链接数量
+	PendingWriteNum int				// 等待写入
+	MaxMsgLen       uint32			// 最大信息长度
+	HTTPTimeout     time.Duration	// 链接超时时间
+	CertFile        string			// 证书文件
+	KeyFile         string			// 证书key
+	NewAgent        func(*WSConn) Agent	// 创建代理
+	ln              net.Listener		// 服务监听链接
+	handler         *WSHandler			// 处理头结构
 }
 
 type WSHandler struct {
@@ -29,7 +30,7 @@ type WSHandler struct {
 	maxMsgLen       uint32
 	newAgent        func(*WSConn) Agent
 	upgrader        websocket.Upgrader
-	conns           WebsocketConnSet
+	conns           WebsocketConnSet		// 链接队列
 	mutexConns      sync.Mutex
 	wg              sync.WaitGroup
 }
@@ -39,32 +40,32 @@ func (handler *WSHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Method not allowed", 405)
 		return
 	}
-	conn, err := handler.upgrader.Upgrade(w, r, nil)
+	conn, err := handler.upgrader.Upgrade(w, r, nil)	// 请求升级http 升级成一个websocket链接
 	if err != nil {
 		log.Debug("upgrade error: %v", err)
 		return
 	}
-	conn.SetReadLimit(int64(handler.maxMsgLen))
+	conn.SetReadLimit(int64(handler.maxMsgLen))			// 设置读取限制
 
-	handler.wg.Add(1)
+	handler.wg.Add(1)									// 等待一个组完成
 	defer handler.wg.Done()
 
-	handler.mutexConns.Lock()
-	if handler.conns == nil {
-		handler.mutexConns.Unlock()
-		conn.Close()
+	handler.mutexConns.Lock()							// 同步锁
+	if handler.conns == nil {							// 如果链接队列为空
+		handler.mutexConns.Unlock()						// 解除同步锁
+		conn.Close()									// 关闭链接
 		return
 	}
-	if len(handler.conns) >= handler.maxConnNum {
-		handler.mutexConns.Unlock()
+	if len(handler.conns) >= handler.maxConnNum {		// 如果链接列表中数量超出了设置的最大链接数
+		handler.mutexConns.Unlock()						// 解除锁，并关闭链接
 		conn.Close()
 		log.Debug("too many connections")
 		return
 	}
-	handler.conns[conn] = struct{}{}
-	handler.mutexConns.Unlock()
+	handler.conns[conn] = struct{}{}	// 链接 key val空结构
+	handler.mutexConns.Unlock()			// 解除同步锁
 
-	wsConn := newWSConn(conn, handler.pendingWriteNum, handler.maxMsgLen)
+	wsConn := newWSConn(conn, handler.pendingWriteNum, handler.maxMsgLen)	// 设置要发送信息的条数和最大长度
 	agent := handler.newAgent(wsConn)
 	agent.Run()
 
