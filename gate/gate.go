@@ -1,12 +1,13 @@
 package gate
 
 import (
-	"github.com/name5566/leaf/chanrpc"
-	"github.com/name5566/leaf/log"
-	"github.com/name5566/leaf/network"
 	"net"
 	"reflect"
 	"time"
+
+	"github.com/name5566/leaf/chanrpc"
+	"github.com/name5566/leaf/log"
+	"github.com/name5566/leaf/network"
 )
 
 type Gate struct {
@@ -40,7 +41,7 @@ func (gate *Gate) Run(closeSig chan bool) {
 		wsServer.CertFile = gate.CertFile
 		wsServer.KeyFile = gate.KeyFile
 		wsServer.NewAgent = func(conn *network.WSConn) network.Agent {
-			a := &agent{conn: conn, gate: gate}
+			a := &agent{conn: conn, gate: gate, id: 0}
 			if gate.AgentChanRPC != nil {
 				gate.AgentChanRPC.Go("NewAgent", a)
 			}
@@ -87,6 +88,7 @@ type agent struct {
 	conn     network.Conn
 	gate     *Gate
 	userData interface{}
+	id       int
 }
 
 func (a *agent) Run() {
@@ -157,4 +159,15 @@ func (a *agent) UserData() interface{} {
 
 func (a *agent) SetUserData(data interface{}) {
 	a.userData = data
+}
+
+// 获取
+func (a *agent) GetId() int {
+	return a.id
+}
+
+// 设置代理人id用于分辨
+func (a *agent) SetId(i int) int {
+	a.id = i
+	return a.id
 }

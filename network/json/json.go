@@ -4,9 +4,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"reflect"
+
 	"github.com/name5566/leaf/chanrpc"
 	"github.com/name5566/leaf/log"
-	"reflect"
 )
 
 type Processor struct {
@@ -27,12 +28,14 @@ type MsgRaw struct {
 	msgRawData json.RawMessage
 }
 
+// NewProcessor 创建一个Processor
 func NewProcessor() *Processor {
 	p := new(Processor)
 	p.msgInfo = make(map[string]*MsgInfo)
 	return p
 }
 
+// Register 注册消息
 // It's dangerous to call the method on routing or marshaling (unmarshaling)
 func (p *Processor) Register(msg interface{}) string {
 	msgType := reflect.TypeOf(msg)
@@ -53,6 +56,7 @@ func (p *Processor) Register(msg interface{}) string {
 	return msgID
 }
 
+// SetRouter 设置路由
 // It's dangerous to call the method on routing or marshaling (unmarshaling)
 func (p *Processor) SetRouter(msg interface{}, msgRouter *chanrpc.Server) {
 	msgType := reflect.TypeOf(msg)
