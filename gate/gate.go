@@ -100,7 +100,7 @@ func (a *agent) Run() {
 		}
 
 		if a.gate.Processor != nil {
-			msg, err := a.gate.Processor.Unmarshal(data)
+			msg, err := a.gate.Processor.Unmarshal(data) // 查看消息是否注册过的结构
 			if err != nil {
 				log.Debug("unmarshal message error: %v", err)
 				break

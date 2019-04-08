@@ -35,7 +35,7 @@ func NewProcessor() *Processor {
 	return p
 }
 
-// Register 注册消息
+// Register 注册消息结构，此时还没有指向某个rpc服务
 // It's dangerous to call the method on routing or marshaling (unmarshaling)
 func (p *Processor) Register(msg interface{}) string {
 	msgType := reflect.TypeOf(msg)
@@ -56,7 +56,7 @@ func (p *Processor) Register(msg interface{}) string {
 	return msgID
 }
 
-// SetRouter 设置路由
+// SetRouter 设置一个消息结构传递给哪个rpc服务
 // It's dangerous to call the method on routing or marshaling (unmarshaling)
 func (p *Processor) SetRouter(msg interface{}, msgRouter *chanrpc.Server) {
 	msgType := reflect.TypeOf(msg)
@@ -72,6 +72,7 @@ func (p *Processor) SetRouter(msg interface{}, msgRouter *chanrpc.Server) {
 	i.msgRouter = msgRouter
 }
 
+// SetHandler 设置一个注册的消息结构用哪个方法处理
 // It's dangerous to call the method on routing or marshaling (unmarshaling)
 func (p *Processor) SetHandler(msg interface{}, msgHandler MsgHandler) {
 	msgType := reflect.TypeOf(msg)
@@ -97,6 +98,7 @@ func (p *Processor) SetRawHandler(msgID string, msgRawHandler MsgHandler) {
 	i.msgRawHandler = msgRawHandler
 }
 
+// Route 代理人把信息交付给注册的rpc服务中
 // goroutine safe
 func (p *Processor) Route(msg interface{}, userData interface{}) error {
 	// raw
@@ -130,6 +132,7 @@ func (p *Processor) Route(msg interface{}, userData interface{}) error {
 	return nil
 }
 
+// Unmarshal 客户端发来的数据解析
 // goroutine safe
 func (p *Processor) Unmarshal(data []byte) (interface{}, error) {
 	var m map[string]json.RawMessage
